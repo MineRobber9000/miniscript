@@ -1386,7 +1386,7 @@ static ValueDict getEnvMap() {
 			envMap.SetValue(varName, valueStr);
 		}
 		if (envMap.Lookup(_MS_IMPORT_PATH, Value::null).IsNull()) {
-			envMap.SetValue(_MS_IMPORT_PATH, "$MS_SCRIPT_DIR:$MS_SCRIPT_DIR/lib:$MS_EXE_DIR/lib");
+			envMap.SetValue(_MS_IMPORT_PATH, DEFAULT_IMPORT_PATH);
 		}
 		envMap.SetAssignOverride(assignEnvVar);
 	}

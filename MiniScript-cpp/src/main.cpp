@@ -24,6 +24,13 @@
 #include "ShellIntrinsics.h"
 #include "DateTimeUtils.h"	// TEMP for initial testing
 
+#ifdef __COSMOPOLITAN__
+#include <cosmo.h>
+#define ARGV_DEF char *argv[]
+#else
+#define ARGV_DEF const char *argv[]
+#endif
+
 // YIELD_NANOSECONDS: How many nano-seconds to sleep when yielding.
 #define YIELD_NANOSECONDS 10000000
 
@@ -251,7 +258,7 @@ void RunIntegrationTests(String path) {
 	Print("\nIntegration tests complete.\n");
 }
 
-void PrepareShellArgs(int argc, const char* argv[], int startingAt) {
+void PrepareShellArgs(int argc, ARGV_DEF, int startingAt) {
 	ValueList args;
 	for (int i=startingAt; i<argc; i++) {
 		args.Add(String(argv[i]));
@@ -259,7 +266,7 @@ void PrepareShellArgs(int argc, const char* argv[], int startingAt) {
 	shellArgs = args;
 }
 
-int main(int argc, const char * argv[]) {
+int main(int argc, ARGV_DEF) {
 	
 #if(DEBUG)
 	std::cout << "StringStorage instances at start (from static keywords, etc.): " << StringStorage::instanceCount << std::endl;
@@ -278,10 +285,16 @@ int main(int argc, const char * argv[]) {
 	MiniScript::hostName = "Command-Line (Windows)";
 #elif defined(__APPLE__) || defined(__FreeBSD__)
 	MiniScript::hostName = "Command-Line (Unix)";
+#elif defined(__COSMOPOLITAN__)
+	MiniScript::hostName = "Command-Line (Cosmopolitan)";
 #else
 	MiniScript::hostName = "Command-Line (Linux)";
 #endif
 	MiniScript::hostInfo = "https://miniscript.org/cmdline/";
+	
+#ifdef __COSMOPOLITAN__
+	argc = cosmo_args("/zip/.args", &argv);
+#endif
 	
 	AddPathEnvVars();
 	AddScriptPathVar("");
