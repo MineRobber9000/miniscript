@@ -793,6 +793,29 @@ int WAI_PREFIX(getModulePath)(char* out, int capacity, int* dirname_length)
   return length;
 }
 
+#elif defined(__COSMOPOLITAN__)
+/* cosmopolitan whereami implementation by minerobber
+   CC0 because, I mean, just look at it */
+
+#include <cosmo.h>
+#include <libgen.h>
+#include <string.h>
+
+int WAI_PREFIX(getExecutablePath)(char* out, int length, int* dirname_length) {
+  int _length = strlen(GetProgramExecutableName());
+  if (out != NULL) {
+    strncpy(out, GetProgramExecutableName(), length);
+    char* _dirname = dirname(out);
+    *dirname_length = strlen(_dirname);
+    strncpy(out, GetProgramExecutableName(), length);
+  }
+  return _length;
+}
+
+int WAI_PREFIX(getModulePath)(char* out, int length, int* dirname_length) {
+  return WAI_PREFIX(getExecutablePath)(out, length, dirname_length);
+}
+
 #else
 
 #error unsupported platform
