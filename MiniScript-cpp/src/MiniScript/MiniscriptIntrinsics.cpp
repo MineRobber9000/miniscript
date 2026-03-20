@@ -15,6 +15,15 @@
 #include <ctime>
 #include <algorithm>
 
+#if defined(__APPLE__)
+  #include <sys/sysctl.h>
+#elif defined(_WIN32)
+  #include <windows.h>
+#elif defined(__linux__)
+  #include <sys/utsname.h>
+  #include <fstream>
+#endif
+
 namespace MiniScript {
 
 	String hostName = "";
@@ -849,6 +858,53 @@ namespace MiniScript {
 			d.SetValue("host", hostVersion);
 			d.SetValue("hostName", hostName);
 			d.SetValue("hostInfo", hostInfo);
+
+			// Platform detection
+			String platform;
+#if defined(__APPLE__)
+			platform = "macOS";
+			char osversion[32];
+			size_t osversion_len = sizeof(osversion);
+			if (sysctlbyname("kern.osproductversion", osversion, &osversion_len, NULL, 0) == 0) {
+				platform = String("macOS ") + osversion;
+			}
+#elif defined(_WIN32)
+			platform = "Windows";
+			typedef LONG(WINAPI* RtlGetVersionPtr)(OSVERSIONINFOW*);
+			HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+			if (ntdll) {
+				RtlGetVersionPtr fn = (RtlGetVersionPtr)GetProcAddress(ntdll, "RtlGetVersion");
+				if (fn) {
+					OSVERSIONINFOW osvi = {};
+					osvi.dwOSVersionInfoSize = sizeof(osvi);
+					if (fn(&osvi) == 0) {
+						platform = String("Windows ") + String::Format((int)osvi.dwMajorVersion)
+							+ "." + String::Format((int)osvi.dwMinorVersion);
+					}
+				}
+			}
+#elif defined(__linux__)
+			platform = "Linux";
+			{
+				std::ifstream osrelease("/etc/os-release");
+				std::string line;
+				while (std::getline(osrelease, line)) {
+					if (line.compare(0, 12, "PRETTY_NAME=") == 0) {
+						std::string val = line.substr(12);
+						// Strip surrounding quotes
+						if (val.size() >= 2 && val.front() == '"' && val.back() == '"') {
+							val = val.substr(1, val.size() - 2);
+						}
+						platform = platform + " " + String(val.c_str());
+						break;
+					}
+				}
+			}
+#else
+			platform = "Unknown";
+#endif
+			d.SetValue("platform", platform);
+
 			context->vm->versionMap = Value(d);
 		}
 		return IntrinsicResult(context->vm->versionMap);
