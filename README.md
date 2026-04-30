@@ -9,7 +9,7 @@ For MiniScript 2.0 (a from-the-ground-up rewrite), see [here](https://github.com
 
 MiniScript is free, and apart from a small amount of revenue from the [books](https://miniscript.org/books/) and [Unity asset](https://assetstore.unity.com/packages/tools/integration/miniscript-87926), generates no significant income.  Your support is greatly appreciated, and will be used to fund community growth & reward programs like [these](https://miniscript.org/earn.html).
 
-So, [click here to sponsor](https://github.com/sponsors/JoeStrout) -- contributions of any size are greatly appreciated!
+So, [click here to sponsor](https://github.com/sponsors/JoeStrout) -- contributions of any size are greatly appreciated!  Or if you prefer, you can just [buy me a coffee](https://buymeacoffee.com/joestrout) to say thanks.
 
 ## Star History
 
