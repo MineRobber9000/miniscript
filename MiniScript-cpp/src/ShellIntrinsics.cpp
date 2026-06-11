@@ -9,6 +9,7 @@
 #include "ShellIntrinsics.h"
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include "MiniScript/SimpleString.h"
 #include "MiniScript/UnicodeUtil.h"
 #include "MiniScript/UnitTest.h"
@@ -31,6 +32,7 @@
 #include <stdexcept>
 #include <array>
 #include <vector>
+#include <cmath>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1458,6 +1460,37 @@ static IntrinsicResult intrinsic_env(Context *context, IntrinsicResult partialRe
 	return IntrinsicResult(getEnvMap());
 }
 
+static IntrinsicResult intrinsicNumToStr(Context *context, IntrinsicResult partialResult) {
+	Value nValue = context->GetVar("n");
+	Value precisionValue = context->GetVar("precision");
+
+	// if precision == null then return str(n)
+	if (precisionValue.type==ValueType::Null) {
+		return IntrinsicResult(nValue.ToString());
+	}
+
+	// if not n isa number or not precision isa number then
+	if (nValue.type!=ValueType::Number || precisionValue.type!=ValueType::Number) {
+		(*context->vm->standardOutput)("numToStr error: arguments must be numbers.", true);
+		return IntrinsicResult::Null;
+	}
+
+	std::ostringstream out;
+	double n = nValue.DoubleValue();
+	int precision = precisionValue.IntValue();
+
+	if (precision<0) {
+		double factor = std::pow(10.0, std::abs(precision));
+		n = std::round(n / factor) * factor;
+		precision = 0;
+	}
+	out << std::fixed << std::setprecision(precision) << n;
+
+	std::string outstring = out.str();
+
+	return IntrinsicResult(String(outstring.c_str(), (size_t)outstring.size()));
+}
+
 void AddScriptPathVar(const char* scriptPartialPath) {
 	String scriptDir;
 	if (!scriptPartialPath || scriptPartialPath[0] == 0) {
@@ -1641,6 +1674,11 @@ void AddShellIntrinsics() {
 	
 	f = Intrinsic::Create("key");
 	f->code = &intrinsic_Key;
+	
+	f = Intrinsic::Create("_numToStr");
+	f->AddParam("n");
+	f->AddParam("precision", Value::null);
+	f->code = &intrinsicNumToStr;
 	
 	
 	// RawData methods
