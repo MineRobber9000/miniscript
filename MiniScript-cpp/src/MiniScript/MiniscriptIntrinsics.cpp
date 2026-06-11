@@ -22,6 +22,11 @@
 #elif defined(__linux__)
   #include <sys/utsname.h>
   #include <fstream>
+#elif defined(__COSMOPOLITAN__)
+  #include <sys/utsname.h>
+  #include <fstream>
+  #include "libc/dce.h"
+  #include "libc/calls/calls.h"
 #endif
 
 namespace MiniScript {
@@ -899,6 +904,44 @@ namespace MiniScript {
 						break;
 					}
 				}
+			}
+#elif defined(__COSMOPOLITAN__)
+			platform = "Cosmopolitan";
+			{
+				// TODO: is there a cosmopolitan libc function to get a libc version like these other platforms?
+				// get a version for specific OSes
+				String os;
+				if (IsLinux()) { // /etc/os-release parsing
+					os = "Linux";
+					std::ifstream osrelease("/etc/os-release");
+					std::string line;
+					while (std::getline(osrelease, line)) {
+						if (line.compare(0, 12, "PRETTY_NAME=") == 0) {
+							std::string val = line.substr(12);
+							// Strip surrounding quotes
+							if (val.size() >= 2 && val.front() == '"' && val.back() == '"') {
+								val = val.substr(1, val.size() - 2);
+							}
+							os = os + " " + String(val.c_str());
+							break;
+						}
+					}
+				} else if (IsXnu()) { // macOS, use sysctlbyname()
+					os = "macOS";
+					char osversion[32];
+					size_t osversion_len = sizeof(osversion);
+					if (sysctlbyname("kern.osproductversion", osversion, &osversion_len, NULL, 0) == 0) {
+						platform = String("macOS ") + osversion;
+					}
+				} else { // Windows, BSDs or complete unknown (uname())
+					struct utsname u;
+					if (uname(&u)==0) {
+						os = String(u.sysname) + " " + String(u.release);
+					} else {
+						os = "Unknown";
+					}
+				}
+				platform = os + " (Cosmopolitan)";
 			}
 #else
 			platform = "Unknown";

@@ -82,6 +82,13 @@ add_library(miniscript-cpp
 
 target_include_directories(miniscript-cpp PUBLIC MiniScript-cpp/src/MiniScript)
 
+if(COSMOPOLITAN)
+	# enable additional cosmopolitan features we use
+	target_compile_options(miniscript-cpp PRIVATE
+		-mcosmo
+	)
+endif()
+
 if(NOT WIN32)
 	set(EDITLINE_SRC
 		MiniScript-cpp/src/editline/complete.c
@@ -103,6 +110,17 @@ add_executable(minicmd
 )
 target_include_directories(minicmd PRIVATE MiniScript-cpp/src/editline)
 target_link_libraries(minicmd PRIVATE miniscript-cpp)
+
+if(COSMOPOLITAN)
+	# package libraries in ZipFS
+	# InfoZIP needs us to have a file extension (or defaults to adding `.zip`)
+	# cosmopolitan zen = use `.com` extension
+	set_target_properties(minicmd PROPERTIES SUFFIX ".com")
+	add_custom_command(TARGET minicmd POST_BUILD
+		COMMAND zip -r -9 $<TARGET_FILE:minicmd> lib
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/MiniScript-cpp
+	)
+endif()
 
 set_target_properties(miniscript-cpp minicmd PROPERTIES
 	CXX_STANDARD 14
