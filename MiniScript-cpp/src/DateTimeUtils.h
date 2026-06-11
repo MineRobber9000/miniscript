@@ -13,6 +13,11 @@
 #include <time.h>
 #include "MiniScript/SimpleString.h"
 
+int64_t timestampFromTime(struct tm time);
+struct tm timeFromTimestamp(int64_t timestamp);
+int64_t timestampNow();
+int64_t utcForTimestamp(int64_t timestamp);
+
 namespace MiniScript {
 
 String FormatDate(time_t dateTime, String formatSpec);

@@ -20,6 +20,84 @@ struct tm *localtime_r( const time_t *timer, struct tm *buf ) {
 }
 #endif
 
+// cf. https://howardhinnant.github.io/date_algorithms.html
+// we use an offset of 730425 (2000-01-01) instead of the typical 719468 (1970-01-01)
+static int64_t epochOffsetDays = 730425;
+static int64_t epochOffsetSeconds = 946684800;
+int64_t days_from_civil(int y, int m, int d) {
+	y -= m < 2;
+	const int64_t era = (y >= 0 ? y : y-399) / 400;
+	const unsigned yoe = static_cast<unsigned>(y - era * 400);   // [0, 399]
+	const unsigned doy = (153*(m > 2 ? m-3 : m+9) + 2)/5 + d-1;  // [0, 365]
+	const unsigned doe = yoe * 365 + yoe/4 - yoe/100 + doy;      // [0, 146096]
+	return era * 146097 + static_cast<int64_t>(doe) - epochOffsetDays;
+}
+
+void civil_from_days(int64_t z, int& y, int& m, int& d) {
+	z += epochOffsetDays;
+	const int64_t era = (z >= 0 ? z : z - 146096) / 146097;
+	const unsigned doe = (unsigned)(z - era * 146097);  // [0, 146096]
+	const unsigned yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365;
+	y = (int)(yoe) + era * 400;
+	const unsigned doy = doe - (365*yoe + yoe/4 - yoe/100);
+	const unsigned mp = (5*doy + 2)/153;
+	d = doy - (153*mp + 2)/5 + 1;
+	m = mp + (mp < 10 ? 3 : -9);
+	y += (m <= 2);
+}
+
+// converts a struct tm into int64 seconds before/since 2000-01-01 00:00:00
+// ignores DST and timezones (we weren't even parsing timezones anyways)
+int64_t timestampFromTime(struct tm time) {
+	int64_t days = days_from_civil(
+		time.tm_year + 1900,
+		time.tm_mon + 1,
+		time.tm_mday
+	);
+
+	return days * 86400 +
+		time.tm_hour * 3600 +
+		time.tm_min * 60 +
+		time.tm_sec;
+}
+
+// converts a timestamp from our epoch to a struct tm
+struct tm timeFromTimestamp(int64_t timestamp) {
+	struct tm time;
+
+	int64_t days = timestamp / 86400;
+	int64_t rem = timestamp % 86400;
+	if (rem < 0) {
+		rem += 86400;
+		--days;
+	}
+
+	// convert days first
+	civil_from_days(days, time.tm_year, time.tm_mon, time.tm_mday);
+	time.tm_year -= 1900; // tm_year relative to 1900
+	time.tm_mon -= 1; // tm_mon [0,11], not [1,12]
+
+	// now time
+	time.tm_hour = rem / 3600;
+	time.tm_min = (rem / 60) % 60;
+	time.tm_sec = rem % 60;
+
+	// dst always 0 because UTC
+	time.tm_isdst = 0;
+
+	return time;
+}
+
+// gets the timestamp for the current second
+int64_t timestampNow() {
+	return time(NULL) - epochOffsetSeconds;
+}
+
+// gets the UTC timestamp for the given MiniScript timestamp
+int64_t utcForTimestamp(int64_t timestamp) {
+	return timestamp + epochOffsetSeconds;
+}
+
 namespace  MiniScript {
 
 static bool Match(const String s, size_t *posB, const String match) {
@@ -32,8 +110,9 @@ static bool Match(const String s, size_t *posB, const String match) {
 }
 
 String FormatDate(time_t t, String formatSpec) {
+	t = utcForTimestamp(t);
 	tm dateTime;
-	struct tm *newtime = localtime_r(&t, &dateTime);
+	struct tm *newtime = gmtime_r(&t, &dateTime);
 	if (newtime == nullptr) return "";  // arg t too large
 	
 	const int BUFSIZE = 128;
@@ -299,16 +378,12 @@ time_t ParseDate(const String dateStr) {
 	if (pmTime && dateTime.tm_hour < 12) dateTime.tm_hour += 12;
 	if (!gotDate) {
 		// If no date is supplied, assume the current date
-		tm now;
-		time_t t;
-		time(&t);
-		localtime_r(&t, &now);
+		tm now = timeFromTimestamp(timestampNow());
 		dateTime.tm_year = now.tm_year;
 		dateTime.tm_mon = now.tm_mon;
 		dateTime.tm_mday = now.tm_mday;
 	}
-	dateTime.tm_isdst = -1;
-	return mktime(&dateTime);
+	return timestampFromTime(dateTime);
 }
 
 }

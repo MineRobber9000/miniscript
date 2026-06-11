@@ -407,49 +407,34 @@ static IntrinsicResult intrinsic_exists(Context *context, IntrinsicResult partia
 	return IntrinsicResult(Value::Truth(found));
 }
 
-static double dateTimeEpoch() {
-	static double _result = 0;
-	if (_result == 0) {
-		tm baseDate;
-		memset(&baseDate, 0, sizeof(tm));
-		baseDate.tm_year = 2000 - 1900;	// (because tm_year is years since 1900!)
-		baseDate.tm_mon = 0;
-		baseDate.tm_mday = 1;
-		_result = mktime(&baseDate);
-	}
-	return _result;
-}
-
 static IntrinsicResult intrinsic_dateStr(Context *context, IntrinsicResult partialResult) {
 	Value date = context->GetVar("date");
 	Value format = context->GetVar("format");
 	String formatStr;
 	if (format.IsNull()) formatStr = "yyyy-MM-dd HH:mm:ss";
 	else formatStr = format.ToString();
-	double d;
+	int64_t timestamp;
 	if (date.IsNull()) {
-		time_t t;
-		time(&t);
-		d = t;
+		timestamp = timestampNow();
 	} else if (date.type == ValueType::Number) {
-		d = date.DoubleValue() + dateTimeEpoch();
+		timestamp = (int64_t)date.DoubleValue();
 	} else {
-		d = ParseDate(date.ToString());
+		timestamp = ParseDate(date.ToString());
 	}
-	return IntrinsicResult(FormatDate((time_t)d, formatStr));
+	return IntrinsicResult(FormatDate((time_t)timestamp, formatStr));
 }
 
 static IntrinsicResult intrinsic_dateVal(Context *context, IntrinsicResult partialResult) {
 	Value date = context->GetVar("dateStr");
 	time_t t;
 	if (date.IsNull()) {
-		time(&t);
+		t = timestampNow();
 	} else if (date.type == ValueType::Number) {
 		return IntrinsicResult(date);
 	} else {
 		t = ParseDate(date.ToString());
 	}
-	return IntrinsicResult((double)t - dateTimeEpoch());
+	return IntrinsicResult(t);
 }
 
 static String timestampToString(const struct tm& t) {
